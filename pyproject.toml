@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ppdf"
+description = "pdf web-archival tool"
+version = "0.0.1"
+
+requires-python = ">=3.9"
+dependencies = [
+  "playwright == 1.51.0",
+  "pypdf == 5.4.0",
+]
+license = "MIT"
+
+[project.scripts]
+ppdf = "ppdf.__main__:main"
+
+[project.optional-dependencies]
+build = ["build"]
+dev = ["pytest", "pytest-asyncio", "ruff", "tox"]
+types = ["mypy", "types-setuptools"]
+
+[project.urls]
+Homepage = "https://github.com/ashnel3"
+
+[tool.mypy]
+strict = true
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
+
+[tool.ruff.format]
+quote-style = "single"

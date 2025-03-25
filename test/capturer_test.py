@@ -1,20 +1,30 @@
 import playwright.async_api as Playwright
 import pytest
-from typing import Any, cast
 
 from ppdf.capturer import PPDFCapturer
 
-# TODO: test recursion filtering
-
 
 @pytest.mark.asyncio
-async def test_enqueue_skips() -> None:
-    capturer = PPDFCapturer(cast(Any, None))
+async def test_enqueue_skips(browser_ctx: Playwright.BrowserContext) -> None:
+    capturer = PPDFCapturer(browser_ctx)
     before = await capturer.enqueue(['test://a', 'test://b'], 0)
     after = await capturer.enqueue(['test://a', 'test://b', 'test://c', 'test://d'], 0)
     assert capturer.queue.qsize() == 4
     assert len(before) == 2
     assert len(after) == 2
+
+
+@pytest.mark.asyncio(loop_scope='session')
+async def test_filtering(browser_ctx: Playwright.BrowserContext) -> None:
+    pdf = await PPDFCapturer.execute(
+        browser_ctx,
+        ['https://example.com'],
+        recurse_enabled=True,
+        recurse_level=2,
+        recurse_accept=['http*://*iana.org/domains/example'],
+        recurse_reject=['http*://*'],
+    )
+    assert pdf.get_num_pages() == 2
 
 
 @pytest.mark.asyncio(loop_scope='session')

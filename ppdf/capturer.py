@@ -1,11 +1,11 @@
-from .logger import logger
-
 import asyncio
 import playwright.async_api as Playwright
 import pypdf
 from fnmatch import fnmatch
 from io import BytesIO
-from typing import Any, Iterable, NotRequired, TypedDict, Unpack
+from typing import Iterable, NotRequired, TypedDict, Unpack
+
+from .logger import logger
 
 
 class PPDFCapturerOptions(TypedDict):
@@ -31,10 +31,10 @@ class PPDFCapturer:
 
     def __init__(
         self,
-        browser_context: Playwright.BrowserContext,
+        browser_ctx: Playwright.BrowserContext,
         **kwargs: Unpack[PPDFCapturerOptions],
     ) -> None:
-        self.browser_context = browser_context
+        self.browser_ctx = browser_ctx
         self.concurrency = kwargs.get('concurrency', 4)
         self.pdf_document = pypdf.PdfWriter()
         self.queue = asyncio.Queue()
@@ -58,10 +58,10 @@ class PPDFCapturer:
     ) -> pypdf.PdfWriter:
         async with Playwright.async_playwright() as playwright:
             browser = await playwright.chromium.launch(channel='chrome')
-            browser_context = await browser.new_context()
+            browser_ctx = await browser.new_context()
             try:
                 logger.debug('browser launched...')
-                return await PPDFCapturer.execute(browser_context, urls, **kwargs)
+                return await PPDFCapturer.execute(browser_ctx, urls, **kwargs)
             except Exception:
                 raise
             finally:
@@ -70,9 +70,11 @@ class PPDFCapturer:
 
     @staticmethod
     async def execute(
-        browser_context: Playwright.BrowserContext, urls: Iterable[str], **kwargs: Any
+        browser_ctx: Playwright.BrowserContext,
+        urls: Iterable[str],
+        **kwargs: Unpack[PPDFCapturerOptions],
     ) -> pypdf.PdfWriter:
-        capturer = PPDFCapturer(browser_context, **kwargs)
+        capturer = PPDFCapturer(browser_ctx, **kwargs)
         # enqueue initial urls
         await capturer.enqueue(urls, 0)
         # wait for async queue
@@ -125,7 +127,7 @@ class PPDFCapturer:
     async def _worker_process(self, level: int, url: str) -> None:
         logger.debug(f'({level}) task started "{url}"')
         # TODO: use asyncio task timeout
-        page = await self.browser_context.new_page()
+        page = await self.browser_ctx.new_page()
         page.on('dialog', self._page_on_dialog)
         page.on('download', self._page_on_download)
         try:
@@ -171,9 +173,10 @@ class PPDFCapturer:
                 or len(self.recurse_accept) == 0
                 or any(fnmatch(url, pat) for pat in self.recurse_accept)
             )
-            rejected = not accepted or any(
+            rejected = not accepted and any(
                 fnmatch(url, pat) for pat in self.recurse_reject
             )
+            # print(f'accepted = {accepted}, rejected = {rejected}')
             if rejected:
                 logger.debug(f'queue skipped "{url}"')
             else:
